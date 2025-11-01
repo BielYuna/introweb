@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>calculadora master</title>
+		<style>
+			:root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--text:#e6eef6}
+			html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial;background:linear-gradient(180deg,#071028 0%,#0b1220 100%);color:var(--text)}
+			.wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:32px}
+			.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;padding:20px;width:320px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+			h1{font-size:18px;margin:0 0 10px 0;text-align:center}
+			.display{background:#071126;color:var(--text);border-radius:8px;padding:12px;font-size:24px;text-align:right;overflow:hidden;white-space:nowrap}
+			.display .expr{color:#9fb7c6;font-size:14px}
+			.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+			button.key{padding:14px;font-size:18px;border-radius:8px;border:0;background:#0f2130;color:var(--text);cursor:pointer}
+			button.key:hover{filter:brightness(1.06)}
+			button.op{background:#07394a;color:#bff0fb}
+			button.equal{grid-column:span 2;background:var(--accent);color:#042028;font-weight:700}
+			.small{font-size:13px;padding:6px 8px;border-radius:6px}
+			.footer{margin-top:12px;font-size:12px;color:#97b2c0;text-align:center}
+			@media (max-width:380px){.card{width:100%}}
+		</style>
+	</head>
+	<body>
+		<div class="wrap">
+			<div class="card" role="application" aria-label="Calculadora simples">
+				<h1>Calculadora</h1>
+				<div id="display" class="display" aria-live="polite">
+					<div id="expr" class="expr"></div>
+					<div id="result">0</div>
+				</div>
+
+				<div class="keys" role="group" aria-label="Teclado da calculadora">
+					<button class="key small" data-action="clear">C</button>
+					<button class="key small" data-action="back">⌫</button>
+					<button class="key small" data-value="(" aria-label="abre parêntese">(</button>
+					<button class="key op" data-value=")" aria-label="fecha parêntese">)</button>
+
+					<button class="key" data-value="7">7</button>
+					<button class="key" data-value="8">8</button>
+					<button class="key" data-value="9">9</button>
+					<button class="key op" data-value="/">÷</button>
+
+					<button class="key" data-value="4">4</button>
+					<button class="key" data-value="5">5</button>
+					<button class="key" data-value="6">6</button>
+					<button class="key op" data-value="*">×</button>
+
+					<button class="key" data-value="1">1</button>
+					<button class="key" data-value="2">2</button>
+					<button class="key" data-value="3">3</button>
+					<button class="key op" data-value="-">−</button>
+
+					<button class="key" data-value="0">0</button>
+					<button class="key" data-value=".">.</button>
+					<button class="key equal" id="equals">=</button>
+					<button class="key op" data-value="+">+</button>
+				</div>
+
+				<div class="footer">Use o mouse ou o teclado. Enter = =, Esc = limpar, Backspace = apagar.</div>
+			</div>
+		</div>
+
+		<script>
+			(function(){
+				const exprEl = document.getElementById('expr');
+				const resultEl = document.getElementById('result');
+				let expr = '';
+
+				function sanitizeForEval(s){
+					// Permit only digits, operators, parentheses, decimal point and spaces
+					if(!/^[0-9+\-*/().\s]*$/.test(s)) return null;
+					return s;
+				}
+
+				function updateDisplay(){
+					exprEl.textContent = expr;
+					resultEl.textContent = expr ? expr : '0';
+				}
+
+				function append(value){
+					// map visible operator symbols if needed (we use ascii ops in data-value)
+					expr += String(value);
+					updateDisplay();
+				}
+
+				function backspace(){
+					expr = expr.slice(0,-1);
+					updateDisplay();
+				}
+
+				function clearAll(){
+					expr = '';
+					updateDisplay();
+				}
+
+				function evaluateExpr(){
+					const s = sanitizeForEval(expr);
+					if(s === null){
+						resultEl.textContent = 'Entrada inválida';
+						return;
+					}
+					try{
+						// eslint-disable-next-line no-new-func
+						const val = Function('return (' + s + ')')();
+						if(val === Infinity || val === -Infinity) resultEl.textContent = 'Erro: divisão por zero';
+						else if(Number.isNaN(val)) resultEl.textContent = 'Erro';
+						else resultEl.textContent = String(val);
+						expr = String(val);
+					}catch(e){
+						resultEl.textContent = 'Erro';
+					}
+				}
+
+				// Mouse clicks
+				document.querySelectorAll('.key').forEach(btn=>{
+					btn.addEventListener('click', ()=>{
+						const a = btn.dataset.action;
+						const v = btn.dataset.value;
+						if(a === 'clear') { clearAll(); }
+						else if(a === 'back') { backspace(); }
+						else if(btn.id === 'equals') { evaluateExpr(); }
+						else if(v !== undefined) { append(v); }
+					});
+				});
+
+				// Keyboard support
+				window.addEventListener('keydown', (ev)=>{
+					if(ev.key === 'Enter') { ev.preventDefault(); evaluateExpr(); return; }
+					if(ev.key === 'Backspace') { ev.preventDefault(); backspace(); return; }
+					if(ev.key === 'Escape') { ev.preventDefault(); clearAll(); return; }
+					// allow digits and operators
+					const allowed = '0123456789+-*/().';
+					if(allowed.includes(ev.key)){
+						ev.preventDefault(); append(ev.key);
+					}
+				});
+
+				// initial render
+				updateDisplay();
+			})();
+		</script>
+	</body>
+</html>
+
